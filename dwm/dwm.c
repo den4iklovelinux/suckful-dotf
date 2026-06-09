@@ -36,7 +36,9 @@
 #include <X11/Xlib.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
-#include <GL/glew.h>
+#define GL_GLEXT_PROTOTYPES
+#include <GL/gl.h>
+#include <GL/glext.h>
 #include <math.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -496,11 +498,11 @@ initGLSLWall( void )
 		fprintf(stderr, "glXMakeCurrent failed!\n");
 		return;
 	}
-	glewExperimental = GL_TRUE;
-	if (glewInit() != GLEW_OK) {
-		fprintf(stderr, "Failed to initialize GLEW!\n");
-		return;
-	}
+//	glewExperimental = GL_TRUE;
+//	if (glewInit() != GLEW_OK) {
+//		fprintf(stderr, "Failed to initialize GLEW!\n");
+//		return;
+//	}
 	const char *vertexShaderSource = readShaderSource(gl_wallpaper_vert);
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);

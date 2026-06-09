@@ -1,0 +1,6 @@
+Version: 5
+
+Source: https://git.suckless.org/st
+Matching-Pattern: refs/tags/([\d\.]+)
+Mode: git
+Pgp-Mode: none

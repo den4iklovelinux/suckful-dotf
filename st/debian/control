@@ -1,0 +1,39 @@
+Source: stterm
+Section: x11
+Maintainer: Paride Legovini <paride@debian.org>
+Build-Driver: debputy
+Build-Depends:
+ debputy (>= 0.1.75~),
+ dpkg-dev (>= 1.22.7~),
+ libx11-dev,
+ libxft-dev,
+ pkgconf,
+Standards-Version: 4.7.4
+Vcs-Browser: https://salsa.debian.org/debian/st
+Vcs-Git: https://salsa.debian.org/debian/st.git
+Homepage: https://st.suckless.org
+X-Style: black
+
+Package: stterm
+Architecture: any
+Depends:
+ ncurses-term (>= 6.1+20180714-1),
+Provides:
+ x-terminal-emulator,
+Multi-Arch: foreign
+X-Comment:
+ The versioned dependency for ncurses-term is on the first update after the
+ terminfo entry for st has been last updated in the terminfo database. This
+ can be checked in <https://invisible-island.net/ncurses/NEWS.html>.
+Description: simple terminal emulator for X
+ st is a terminal emulator from the suckless project with a focus on
+ simplicity, clarity and frugality. The project's philosophy is about
+ keeping things simple, minimal and usable.
+ .
+ st supports most VT10X escape sequences, serial lines, XIM, utmp via
+ utmp(1), clipboard handling, mouse and keyboard shortcuts, UTF-8, wide
+ characters, resize, 256 colors, true colors, antialiased fonts (using
+ fontconfig), fallback fonts, and line drawing. It does *not* provide
+ a scrollback buffer: users are encouraged to use a terminal multiplexter.
+ .
+ This Debian package is called 'stterm' for historical reasons.

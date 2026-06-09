@@ -1,0 +1,42 @@
+#! /usr/bin/env python
+# encoding: utf-8
+
+from waflib import Utils
+import os
+
+top = '.'
+PROJECT_NAME = 'st'
+install_path="/usr/local/bin"
+VERSION="0.9.3"
+
+def options(opt):
+	return
+def configure(conf):
+	return
+def build(ctx):
+	source = ['st.c',
+			'x.c'
+			]
+	includes = ['.', '/usr/include/freetype2', '/usr/X11R6/include']
+	libs = ['X11', 'FTCFG', 'XFT', 'XINER']
+	defines = ['_DEFAULT_SOURCE', '_XOPEN_SOURCE=600', f"VERSION=\"{VERSION}\"", 'XINERAMA']
+	cflags = ['-std=c99', '-pedantic', '-Wall', '-Os']
+	scripts = ctx.path.ant_glob("scripts/*")
+	for script in scripts:
+		ctx.install_as(
+			dest="/usr/bin/" + script.name,
+			srcfile=script,
+			chmod=0o755
+			)
+	ctx.program(
+		source   = source,
+		target   = PROJECT_NAME,
+		name     = PROJECT_NAME,
+		features = 'c',
+		includes = includes,
+		cflags = cflags,
+		defines  = defines,
+		use      = libs,
+		install_path = install_path,
+		# idx      = bld.get_taskgen_count()
+	)

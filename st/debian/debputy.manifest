@@ -1,0 +1,14 @@
+manifest-version: '0.1'
+default-build-environment:
+  set:
+    DEB_BUILD_MAINT_OPTIONS: hardening=+all
+remove-during-clean:
+- config.h
+installations:
+- install:
+    source: debian/st.desktop
+    dest-dir: usr/share/applications
+- install-docs:
+    sources:
+    - FAQ
+    - LEGACY

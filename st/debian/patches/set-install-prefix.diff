@@ -1,0 +1,18 @@
+Description: Set install prefix to /usr
+Author: Paride Legovini <paride@debian.org>
+Origin: vendor
+Forwarded: not-needed
+Last-Update: 2025-08-29
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/config.mk
++++ b/config.mk
+@@ -4,7 +4,7 @@
+ # Customize below to fit your system
+ 
+ # paths
+-PREFIX = /usr/local
++PREFIX = /usr
+ MANPREFIX = $(PREFIX)/share/man
+ 
+ X11INC = /usr/X11R6/include

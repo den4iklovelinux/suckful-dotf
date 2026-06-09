@@ -65,7 +65,7 @@ def build(ctx):
 			'NK_IMPLEMENTATION',
 			]
     includes = ['.']
-    cflags = ['-std=c99', '-pedantic', '-Wall', '-Wno-deprecated-declarations', '-O1', '-Wno-unused-parameter', '-Wextra']
+    cflags = ['-std=c99', '-pedantic', '-Wall', '-Wno-deprecated-declarations', '-O3', '-Wno-unused-parameter', '-Wextra']
     libs = []
     ctx.stlib(
 		source   = source,

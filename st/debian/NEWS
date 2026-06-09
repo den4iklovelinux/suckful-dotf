@@ -1,0 +1,7 @@
+stterm (0.9.3-1) unstable; urgency=medium
+
+  The stterm package does not provide the /usr/bin/stterm -> /usr/bin/st
+  convenience symlink anymore. Please invoke the terminal by using its
+  official upstream name `st`.
+
+ -- Paride Legovini <paride@debian.org>  Fri, 29 Aug 2025 09:40:15 +0200
