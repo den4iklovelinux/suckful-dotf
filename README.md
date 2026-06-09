@@ -1,6 +1,6 @@
 # my dotfiles
 
-republished my own collection of dotfiles for dwm and dmenu in one repo. \
+republished my own collection of dotfiles for suckless env in one repo. \
 In other words, this is dwm thats sucks more.
 ## Mini-review
 
@@ -29,8 +29,8 @@ You can view a list of wallpapers in dwm/glsl/ and choose in config.h
 
 # Depedencies
 0. pkgconf and python ofc for waf buildsystem
-1. dwm depedencies oviviously (libxinerama-dev libxft-dev for debian)
-2. libglew and libglx
+1. dwm, dmenu, st, and slstatus depedencies oviviously (just `apt build-dep` them!)
+2. libgl and libglx
 
 # Building:
 1. clone the repo.
