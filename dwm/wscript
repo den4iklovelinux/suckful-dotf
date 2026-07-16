@@ -16,12 +16,16 @@ def build(ctx):
 			'dwm.c',
 			'util.c']
 	includes = ['.', '/usr/include/freetype2', '../nuklear']
-	libs = ['X11', 'FTCFG', 'XFT', 'XINER', 'GLEW', 'slsutils', 'nuklear']
+	libs = ['X11', 'FTCFG', 'XFT', 'XINER', 'GLEW', 'slsutils', 'nuklear', 'MATH']
 	defines = ['_DEFAULT_SOURCE', '_BSD_SOURCE', '_XOPEN_SOURCE=700L', 'VERSION=\"6.5"', 'XINERAMA']
-	cflags = ['-std=c99', '-pedantic', '-Wall', '-Wno-deprecated-declarations', '-O3']
+	cflags = ['-std=c99', '-pedantic', '-Wall', '-Wno-deprecated-declarations', '', '-g']
 	ctx.install_as(
 		dest="/usr/local/share/dwm/background.png",
 		srcfile="background.png",
+		)
+	ctx.install_as(
+		dest="/usr/local/share/dwm/noise.png",
+		srcfile="noise.png",
 		)
 	walls = ctx.path.ant_glob("glsl/*")
 	wallpath="/usr/local/share/dwm/"

@@ -18,6 +18,7 @@ packages = [
     ('gl','GLEW'),
     ('xinerama','XINER'),
     ('fontconfig','FTCFG'),
+    # ('m', 'M')
     ]
 def configure(ctx):
     ctx.load('compiler_c')
@@ -25,6 +26,13 @@ def configure(ctx):
     ctx.load('clang_compilation_database', tooldir='wafscripts')
     ctx.load('gnu_dirs')
     ctx.check_cc(msg="Checking for C compiler", mandatory=True)
+    ctx.check_cc(
+        lib='m',
+        header_name='math.h',
+        uselib_store='MATH',
+        mandatory=True,
+        msg='Checking for math library'
+    )
     for package in packages: ctx.check_cfg(package=package[0], uselib_store=package[1], args=['--cflags', '--libs'])
     for target in targets: ctx.recurse(target)
         

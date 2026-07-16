@@ -15,11 +15,11 @@ static const int topbar             = 1;     /* 0 means bottom bar */
 static const int focusonwheel       = 0;
 static const char *fonts[]          = { "Eternal UI:size=10" };
 static const char dmenufont[]       = "Eternal UI:size=10";
-static const char col_gray1[]       = "#1e1e2e";
-static const char col_gray2[]       = "#313244";
-static const char col_gray3[]       = "#45475a";
-static const char col_gray4[]       = "#585b70";
-static const char col_cyan[]        = "#6c7086";
+static const char col_gray1[]       = "#002116";
+static const char col_gray2[]       = "#00513c";
+static const char col_gray3[]       = "#196b52";
+static const char col_gray4[]       = "#378369";
+static const char col_cyan[]        = "#83f8cd";
 static const char *colors[][3]      = {
 	/*               fg         bg         border   */
 	[SchemeNorm] = { col_gray3, col_gray1, col_gray2 },

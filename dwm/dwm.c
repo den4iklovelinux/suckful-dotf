@@ -47,7 +47,10 @@
 #include<GL/glu.h>
 #include <pthread.h>
 #include "slstatus.h"
+#include "expflow.h"
 #define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #define FRAME_LIMIT 60
 #define SHADER_WIDTH 1920
 #define SHADER_HEIGHT 1080
@@ -412,7 +415,8 @@ readShaderSource(const char* shaderFile) {
 #include "config.h"
 
 
-void createRibbon() {
+void
+createRibbon() {
 	const int widthSegments = 64;
 	const int heightSegments = 32;
 	const float width = 3.0f;
@@ -472,6 +476,181 @@ void createRibbon() {
 	free(indices);
 }
 
+GLuint compileShader(GLenum type, const char* source) {
+	GLuint shader = glCreateShader(type);
+	glShaderSource(shader, 1, &source, NULL);
+	glCompileShader(shader);
+	GLint success;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+	if (!success) {
+		char infoLog[512];
+		glGetShaderInfoLog(shader, 512, NULL, infoLog);
+		fprintf(stderr, "Shader compilation failed:\n%s\n", infoLog);
+	}
+	return shader;
+}
+
+GLuint createProgram(const char* vsSource, const char* fsSource) {
+	GLuint vs = compileShader(GL_VERTEX_SHADER, vsSource);
+	GLuint fs = compileShader(GL_FRAGMENT_SHADER, fsSource);
+	GLuint prog = glCreateProgram();
+	glAttachShader(prog, vs);
+	glAttachShader(prog, fs);
+	glLinkProgram(prog);
+	glDeleteShader(vs);
+	glDeleteShader(fs);
+	return prog;
+}
+
+float randomFloat(void);
+
+GLint bg_time ;
+GLint bg_lsB_x ;
+GLint bg_lsB_y ;
+GLint bg_noiseTextureScale ;
+GLint bg_precalc_ratio ;
+
+GLint ln_time ;
+GLint ln_lsByx ;
+GLint ln_precalc_ratio ;
+GLint ln_precalc_radlc ;
+GLint ln_precalc_randval ;
+GLint ln_precalc_curveParams;
+GLint ln_precalc_car ;
+
+GLuint bgProgram;
+GLuint lineProgram;
+
+GLuint bgVAO, bgVBO;
+GLuint lineVAO, lineVBO;
+GLuint noiseTex;
+
+LineData lines[4];
+int numLineVerts;
+void
+createLines()
+{
+
+
+	// Background Geometry
+	float bgVertices[] = {
+		0.0f, 0.0f,
+		0.0f, 1.0f,
+		1.0f, 0.0f,
+		1.0f, 1.0f
+	};
+	glGenVertexArrays(1, &bgVAO);
+	glGenBuffers(1, &bgVBO);
+	glBindVertexArray(bgVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, bgVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(bgVertices), bgVertices, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	// Line Geometry
+	const int numSegmentsX = 100;
+	const int numSegmentsY = 10;
+	numLineVerts = (numSegmentsX - 1) * numSegmentsY * 6 * 2;
+	float* lineVerts = (float*)malloc(numLineVerts * sizeof(float));
+	int vIdx = 0;
+	for (int i = 0; i < numSegmentsX - 1; i++) {
+		float x1 = (float)i / (numSegmentsX - 1);
+		float x2 = (float)(i + 1) / (numSegmentsX - 1);
+		for (int j = 0; j < numSegmentsY; j++) {
+			float y1 = (float)j / (numSegmentsY - 1);
+			float y2 = (float)(j + 1) / (numSegmentsY - 1);
+			lineVerts[vIdx++] = x1; lineVerts[vIdx++] = y1;
+			lineVerts[vIdx++] = x2; lineVerts[vIdx++] = y1;
+			lineVerts[vIdx++] = x1; lineVerts[vIdx++] = y2;
+			lineVerts[vIdx++] = x2; lineVerts[vIdx++] = y1;
+			lineVerts[vIdx++] = x2; lineVerts[vIdx++] = y2;
+			lineVerts[vIdx++] = x1; lineVerts[vIdx++] = y2;
+		}
+	}
+	glGenVertexArrays(1, &lineVAO);
+	glGenBuffers(1, &lineVBO);
+	glBindVertexArray(lineVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, lineVBO);
+	glBufferData(GL_ARRAY_BUFFER, numLineVerts * sizeof(float), lineVerts, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	// Load Noise Texture
+	int width, height, nrChannels;
+	unsigned char* data = stbi_load("/usr/local/share/dwm/noise.png", &width, &height, &nrChannels, 4);
+	if (!data) data = stbi_load("noise.png", &width, &height, &nrChannels, 4);
+	if (!data) data = stbi_load("../noise.png", &width, &height, &nrChannels, 4);
+
+	glGenTextures(1, &noiseTex);
+	glBindTexture(GL_TEXTURE_2D, noiseTex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	if (data) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		stbi_image_free(data);
+	} else {
+		fprintf(stderr, "Failed to load noise.png\n");
+	}
+
+	srand(1337);
+	for (int i = 0; i < lineCount; i++) {
+		float r1 = randomFloat();
+		float r2 = randomFloat();
+		float r3 = randomFloat();
+		float r4 = randomFloat();
+		float v70 = (float)i / lineCount * 0.5f + 0.5f;
+
+		lines[i].radlc = (float)i / lineCount;
+		lines[i].rand[0] = r1;
+		lines[i].rand[1] = r2;
+		lines[i].rand[2] = r3 * 0.13f;
+		lines[i].rand[3] = r4;
+		lines[i].cp[0] = curveFrequencyRange[0] + r1 * (curveFrequencyRange[1] - curveFrequencyRange[0]);
+		lines[i].cp[1] = curveSpeedRange[0] + r2 * (curveSpeedRange[1] - curveSpeedRange[0]);
+		lines[i].cp[2] = cos(r4 * M_PI);
+		lines[i].car[0] = (curveAmplitudeRange[1] - curveAmplitudeRange[0]) * r3 * v70;
+		lines[i].car[1] = curveAmplitudeRange[0] * v70;
+	}
+
+	 bg_time = glGetUniformLocation(bgProgram, "time");
+	 bg_lsB_x = glGetUniformLocation(bgProgram, "lsB_x");
+	 bg_lsB_y = glGetUniformLocation(bgProgram, "lsB_y");
+	 bg_noiseTextureScale = glGetUniformLocation(bgProgram, "noiseTextureScale");
+	 bg_precalc_ratio = glGetUniformLocation(bgProgram, "precalc_ratio");
+
+	 ln_time = glGetUniformLocation(lineProgram, "time");
+	 ln_lsByx = glGetUniformLocation(lineProgram, "lsByx");
+	 ln_precalc_ratio = glGetUniformLocation(lineProgram, "precalc_ratio");
+	 ln_precalc_radlc = glGetUniformLocation(lineProgram, "precalc_radlc");
+	 ln_precalc_randval = glGetUniformLocation(lineProgram, "precalc_randval");
+	 ln_precalc_curveParams = glGetUniformLocation(lineProgram, "precalc_curveParams");
+	 ln_precalc_car = glGetUniformLocation(lineProgram, "precalc_car");
+}
+
+
+float
+randomFloat(void) {
+	return (float)rand() / (float)RAND_MAX;
+}
+
+GLint bg_time ;
+GLint bg_lsB_x ;
+GLint bg_lsB_y ;
+GLint bg_noiseTextureScale;
+GLint bg_precalc_ratio ;
+
+GLint ln_time ;
+GLint ln_lsByx ;
+GLint ln_precalc_ratio ;
+GLint ln_precalc_radlc ;
+GLint ln_precalc_randval;
+GLint ln_precalc_curveParams;
+GLint ln_precalc_car ;
+
+
 void
 initGLSLWall( void )
 {
@@ -521,42 +700,43 @@ initGLSLWall( void )
 	}
 
 	// Fragment Shader
-	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	const GLchar* shaderSource = (const GLchar*)fragmentShaderSource; // Cast to correct type
-	glShaderSource(fragmentShader, 1, &shaderSource, NULL);
-	glCompileShader(fragmentShader);
+	// GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	// const GLchar* shaderSource = (const GLchar*)fragmentShaderSource; // Cast to correct type
+	// glShaderSource(fragmentShader, 1, &shaderSource, NULL);
+	// glCompileShader(fragmentShader);
+	bgProgram = createProgram(bgVertSource, bgFragSource);
+	lineProgram = createProgram(lineVertSource, lineFragSource);
+	createLines();
+	// glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+	// if (!success) {
+		// glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+		// fprintf(stderr, "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n%s\n", infoLog);
+	// }
 
 
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-		fprintf(stderr, "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n%s\n", infoLog);
-	}
+	// shaderProgram = glCreateProgram();
+	// glAttachShader(shaderProgram, vertexShader);
+	// glAttachShader(shaderProgram, fragmentShader);
+	// glLinkProgram(shaderProgram);
 
 
-	shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
+	// glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+	// if (!success) {
+		// glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+		// fprintf(stderr, "ERROR::PROGRAM::LINKING_FAILED\n%s\n", infoLog);
+	// }
 
-
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if (!success) {
-		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-		fprintf(stderr, "ERROR::PROGRAM::LINKING_FAILED\n%s\n", infoLog);
-	}
-
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
+	// glDeleteShader(vertexShader);
+	// glDeleteShader(fragmentShader);
 	free(fragmentShaderSource);
 
-	createRibbon();
+	// createRibbon();
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	glBindVertexArray(0);
 
-
+#if 0
 	resolutionLocation = glGetUniformLocation(shaderProgram, "iResolution");
 	timeLocation = glGetUniformLocation(shaderProgram, "iTime");
 	rLoc = glGetUniformLocation(shaderProgram, "uR");
@@ -566,6 +746,21 @@ initGLSLWall( void )
 	glColor2 = glGetUniformLocation(shaderProgram, "uColor2");
 	hexToVec3(col_gray1, glcolors);
 	hexToVec3(col_gray2, glcolors2);
+#endif
+	bg_time = glGetUniformLocation(bgProgram, "time");
+	bg_lsB_x = glGetUniformLocation(bgProgram, "lsB_x");
+	bg_lsB_y = glGetUniformLocation(bgProgram, "lsB_y");
+	bg_noiseTextureScale = glGetUniformLocation(bgProgram, "noiseTextureScale");
+	bg_precalc_ratio = glGetUniformLocation(bgProgram, "precalc_ratio");
+
+	ln_time = glGetUniformLocation(lineProgram, "time");
+	ln_lsByx = glGetUniformLocation(lineProgram, "lsByx");
+	ln_precalc_ratio = glGetUniformLocation(lineProgram, "precalc_ratio");
+	ln_precalc_radlc = glGetUniformLocation(lineProgram, "precalc_radlc");
+	ln_precalc_randval = glGetUniformLocation(lineProgram, "precalc_randval");
+	ln_precalc_curveParams = glGetUniformLocation(lineProgram, "precalc_curveParams");
+	ln_precalc_car = glGetUniformLocation(lineProgram, "precalc_car");
+
 	frame = 0;
 	XFlush(dpy);
 
@@ -587,11 +782,11 @@ void nkclock() {
 		win->fixed_background = nk_style_item_color(nk_rgba(100, 100, 100, 0));
 		nk_style_set_font(ctx, &anurati_bold->handle);
 		nk_layout_row_static(ctx, 45, 550, 1);
-		nk_label(ctx, datetime_dayoftheweek(0),NK_TEXT_CENTERED);
+		nk_label_colored(ctx, datetime_dayoftheweek(0),NK_TEXT_CENTERED, nk_rgb_hex("#83f8cd"));
 		// nk_layout_row_static(ctx, 30, 500, 1);
 		nk_layout_row_static(ctx, 60, 550, 2);
 		nk_style_set_font(ctx, &dmmono_regular->handle);
-		nk_label(ctx, datetime("%x %T"),NK_TEXT_CENTERED);
+		nk_label_colored(ctx, datetime("%x %T"),NK_TEXT_CENTERED, nk_rgb_hex("#83f8cd"));
 	}
 	nk_end(ctx);
 }
@@ -622,14 +817,56 @@ void render_background() {
 	float delta_time = (curtime - last_time);
 	last_time = curtime;
 	accumulated_time += delta_time;
-	glUniform3f(resolutionLocation, (float)width, (float)height, 1.0f);
-	// glUniform4f(mouseLocation, (float)mouseX, (float)mouseY, (float)0.0, (float)0.0);
-	glUniform3f(glColor2, glcolors[0], glcolors[1], glcolors[2]);
-	glUniform3f(glColor, glcolors2[0], glcolors2[1], glcolors2[2]);
-	glUniform1f(timeLocation, accumulated_time);
+	// glUniform3f(resolutionLocation, (float)width, (float)height, 1.0f);
+	// // glUniform4f(mouseLocation, (float)mouseX, (float)mouseY, (float)0.0, (float)0.0);
+	// glUniform3f(glColor2, glcolors[0], glcolors[1], glcolors[2]);
+	// glUniform3f(glColor, glcolors2[0], glcolors2[1], glcolors2[2]);
+	// glUniform1f(timeLocation, accumulated_time);
+
+	float aspect = (float)width / height;
+
+	float precalc_ratio = aspect - 0.5625f;
+	if (precalc_ratio < 0.0f) precalc_ratio = 0.0f;
+	precalc_ratio += 1.0f;
+
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	// Draw Background
+	glUseProgram(bgProgram);
+	glUniform1f(bg_time, accumulated_time); // time for force uses time * 200.0 in shader, texture anim uses time * 0.005
+	glUniform1f(bg_lsB_x, (float)width);
+	glUniform1f(bg_lsB_y, (float)height);
+	glUniform1f(bg_precalc_ratio, precalc_ratio);
+	glUniform2f(bg_noiseTextureScale, width / 128.0f, height / 128.0f);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, noiseTex);
+	glBindVertexArray(bgVAO);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	// Draw Lines
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glUseProgram(lineProgram);
+	glUniform1f(ln_time, accumulated_time);
+	glUniform1f(ln_lsByx, (float)width / height);
+	glUniform1f(ln_precalc_ratio, precalc_ratio);
+
+	glBindVertexArray(lineVAO);
+	for (int i = 0; i < lineCount; i++) {
+		glUniform1f(ln_precalc_radlc, lines[i].radlc);
+		glUniform4fv(ln_precalc_randval, 1, lines[i].rand);
+		glUniform3fv(ln_precalc_curveParams, 1, lines[i].cp);
+		glUniform2fv(ln_precalc_car, 1, lines[i].car);
+		glDrawArrays(GL_TRIANGLES, 0, numLineVerts / 2);
+	}
+
+	glDisable(GL_BLEND);
 
 	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, 128 * 32 * 6, GL_UNSIGNED_INT, 0);
+	// glDrawElements(GL_TRIANGLES, 128 * 32 * 6, GL_UNSIGNED_INT, 0);
 	nkclock();
 	nk_x11_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 	glXSwapBuffers(dpy, root);
