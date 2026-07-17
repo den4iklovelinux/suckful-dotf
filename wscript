@@ -18,6 +18,7 @@ packages = [
     ('gl','GLEW'),
     ('xinerama','XINER'),
     ('fontconfig','FTCFG'),
+    ('dbus-1', 'DBUS'),
     # ('m', 'M')
     ]
 def configure(ctx):

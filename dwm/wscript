@@ -16,7 +16,7 @@ def build(ctx):
 			'dwm.c',
 			'util.c']
 	includes = ['.', '/usr/include/freetype2', '../nuklear']
-	libs = ['X11', 'FTCFG', 'XFT', 'XINER', 'GLEW', 'slsutils', 'nuklear', 'MATH']
+	libs = ['X11', 'FTCFG', 'XFT', 'XINER', 'GLEW', 'slsutils', 'nuklear', 'MATH', 'DBUS']
 	defines = ['_DEFAULT_SOURCE', '_BSD_SOURCE', '_XOPEN_SOURCE=700L', 'VERSION=\"6.5"', 'XINERAMA']
 	cflags = ['-std=c99', '-pedantic', '-Wall', '-Wno-deprecated-declarations', '', '-g']
 	ctx.install_as(

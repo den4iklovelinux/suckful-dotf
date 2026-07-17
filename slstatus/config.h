@@ -39,6 +39,7 @@ static const char unknown_str[] = "n/a";
  * load_avg            load average                    NULL
  * netspeed_rx         receive network speed           interface name (wlan0)
  * netspeed_tx         transfer network speed          interface name (wlan0)
+ * mpris               MPRIS player status             NULL
  * num_files           number of files in a directory  path
  *                                                     (/home/foo/Inbox/cur)
  * ram_free            free memory in GB               NULL
@@ -66,5 +67,6 @@ static const char unknown_str[] = "n/a";
  */
 static const struct arg args[] = {
 	/* function format          argument */
+	// { mpris,    " \u266b %s | ", NULL },
 	{ datetime, "%s",           "%c" },
 };

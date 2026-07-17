@@ -14,7 +14,7 @@ def configure(conf):
 def build(ctx):
 	source = [ 'slstatus.c', 'util.c']
 	includes = ['.', '/usr/include/freetype2']
-	libs = ['X11', 'slsutils']
+	libs = ['X11', 'slsutils', 'DBUS']
 	defines = ['_DEFAULT_SOURCE', 'VERSION=\"1.1"', 'XINERAMA']
 	cflags = ['-std=c99', '-pedantic', '-Wall', '-Wno-deprecated-declarations', '-Os', '-Wno-unused-parameter', '-Wextra']
 	ctx.program(

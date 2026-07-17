@@ -767,8 +767,10 @@ initGLSLWall( void )
 }
 struct nk_context *ctx;
 struct nk_colorf bg;
+const char* mpris(const char*);
+
 void nkclock() {
-	if (nk_begin(ctx, "Demo", nk_rect(((DisplayWidth(dpy, DefaultScreen(dpy)) / 2) - (600 /2)), 150, 600, 150),
+	if (nk_begin(ctx, "Demo", nk_rect(((DisplayWidth(dpy, DefaultScreen(dpy)) / 2) - 280), 150, 600, 150),
 		0))
 	{
 		struct nk_style *style;
@@ -787,8 +789,110 @@ void nkclock() {
 		nk_layout_row_static(ctx, 60, 550, 2);
 		nk_style_set_font(ctx, &dmmono_regular->handle);
 		nk_label_colored(ctx, datetime("%x %T"),NK_TEXT_CENTERED, nk_rgb_hex("#83f8cd"));
+
 	}
 	nk_end(ctx);
+}
+struct nk_image load_texture_x11_glx(const char *filename) {
+	int width, height, channels;
+
+	// Переворачиваем по вертикали, чтобы сопоставить X11 и OpenGL координаты
+	stbi_set_flip_vertically_on_load(0);
+
+	unsigned char *data = stbi_load(filename, &width, &height, &channels, 4);
+	if (!data) {
+		return nk_image_id(0);
+	}
+
+	GLuint tex;
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+	stbi_image_free(data);
+	return nk_image_id((int)tex);
+}
+struct nk_image coverimg;
+
+const char* mpris_art_url(const char*);
+void nkmpris()
+{
+	const char *title = mpris("");
+	static char current_coverpath[1024] = {0};
+	
+	if (!title || title[0] == '\0') {
+		if (coverimg.handle.id != 0) {
+			GLuint tex = (GLuint)coverimg.handle.id;
+			glDeleteTextures(1, &tex);
+			coverimg.handle.id = 0;
+		}
+		current_coverpath[0] = '\0';
+		return;
+	}
+
+	const char *new_cover = mpris_art_url("");
+	
+	if ((new_cover == NULL && current_coverpath[0] != '\0') ||
+	    (new_cover != NULL && strcmp(current_coverpath, new_cover) != 0)) 
+	{
+		if (coverimg.handle.id != 0) {
+			GLuint tex = (GLuint)coverimg.handle.id;
+			glDeleteTextures(1, &tex);
+			coverimg.handle.id = 0;
+		}
+		
+		if (new_cover != NULL) {
+			strncpy(current_coverpath, new_cover, sizeof(current_coverpath) - 1);
+			current_coverpath[sizeof(current_coverpath) - 1] = '\0';
+			printf("Loading new cover: %s\n", current_coverpath);
+			coverimg = load_texture_x11_glx(current_coverpath);
+		} else {
+			current_coverpath[0] = '\0';
+			coverimg = nk_image_id(0);
+		}
+	}
+
+	if (nk_begin(ctx, "mpris", nk_rect(((DisplayWidth(dpy, DefaultScreen(dpy)) / 2) - 280), (DisplayHeight(dpy, DefaultScreen(dpy)) - 150), 600, 150),
+		0))
+	{
+		struct nk_style *style;
+		struct nk_style_window *win;
+		NK_ASSERT(ctx);
+		if (!ctx) return;
+		style = &ctx->style;
+		win = &style->window;
+
+		win->background = nk_rgba(100, 255, 100, 0);
+		win->fixed_background = nk_style_item_color(nk_rgba(100, 100, 100, 0));
+
+		if (coverimg.handle.id != 0) {
+			// nk_layout_row_begin(ctx, NK_STATIC, 80, 3);
+			// nk_layout_row_push(ctx, 260); // (600 - 80) / 2 = 260
+			// nk_spacing(ctx, 1);
+			// nk_layout_row_push(ctx, 80);
+			nk_layout_row_template_begin(ctx, 128);
+			nk_layout_row_template_push_static(ctx, 128);
+			nk_layout_row_template_push_dynamic(ctx);
+			nk_layout_row_template_end(ctx);
+
+			nk_image(ctx, coverimg);
+
+			// nk_layout_row_push(ctx, 260);
+			// nk_spacing(ctx, 1);
+			// nk_layout_row_end(ctx);
+		}
+		
+		// nk_layout_row_static(ctx, 30, 550, 1);
+		nk_style_set_font(ctx, &dmmono_regular->handle);
+		nk_label_colored(ctx, mpris(""),NK_TEXT_CENTERED, nk_rgb_hex("#83f8cd"));
+
+	}
+	nk_end(ctx);
+
 }
 void render_background() {
 	if (!glXGetCurrentContext()) return;
@@ -868,6 +972,7 @@ void render_background() {
 	glBindVertexArray(VAO);
 	// glDrawElements(GL_TRIANGLES, 128 * 32 * 6, GL_UNSIGNED_INT, 0);
 	nkclock();
+	nkmpris();
 	nk_x11_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 	glXSwapBuffers(dpy, root);
 	XFlush(dpy);
@@ -881,8 +986,10 @@ void* glx_thread(void *arg) {
 	ctx = nk_x11_init(dpy, root);
 	{
 		nk_x11_font_stash_begin(&atlas);
-		anurati_bold = nk_font_atlas_add_from_file(atlas, "/usr/local/share/fonts/anurati-bold.ttf", 64, 0);
-		dmmono_regular = nk_font_atlas_add_from_file(atlas, "/usr/local/share/fonts/dmmono.ttf", 24, 0);
+		struct nk_font_config cfg = nk_font_config(16);
+		cfg.range = nk_font_cyrillic_glyph_ranges();
+		anurati_bold = nk_font_atlas_add_from_file(atlas, "/usr/local/share/fonts/anurati-bold.ttf", 64, &cfg);
+		dmmono_regular = nk_font_atlas_add_from_file(atlas, "/usr/local/share/fonts/jost.ttf", 24, &cfg);
 		def = nk_font_atlas_add_default(atlas, 24, 0);
 		/*struct nk_font *future = nk_font_atlas_add_from_file(atlas, "../../../extra_font/kenvector_future_thin.ttf", 13, 0);*/
 		/*struct nk_font *clean = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyClean.ttf", 12, 0);*/

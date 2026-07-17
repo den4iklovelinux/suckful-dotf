@@ -83,3 +83,7 @@ const char *vol_perc(const char *card);
 /* wifi */
 const char *wifi_essid(const char *interface);
 const char *wifi_perc(const char *interface);
+
+/* mpris */
+const char *mpris(const char *unused);
+const char *mpris_art_url(const char *unused);
